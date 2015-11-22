@@ -27,7 +27,8 @@
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/cdc.h>
 
-#include <platform.h>
+#include "general.h"
+#include "cdcacm.h"
 
 #define USBUART_TIMER_FREQ_HZ 1000000U /* 1us per tick */
 #define USBUART_RUN_FREQ_HZ 5000U /* 200us (or 100 characters at 2Mbps) */
@@ -138,7 +139,12 @@ static void usbuart_run(void)
 void usbuart_set_line_coding(struct usb_cdc_line_coding *coding)
 {
 	usart_set_baudrate(USBUSART, coding->dwDTERate);
-	usart_set_databits(USBUSART, coding->bDataBits);
+
+	if (coding->bParityType)
+		usart_set_databits(USBUSART, coding->bDataBits + 1);
+	else
+		usart_set_databits(USBUSART, coding->bDataBits);
+
 	switch(coding->bCharFormat) {
 	case 0:
 		usart_set_stopbits(USBUSART, USART_STOPBITS_1);
@@ -150,6 +156,7 @@ void usbuart_set_line_coding(struct usb_cdc_line_coding *coding)
 		usart_set_stopbits(USBUSART, USART_STOPBITS_2);
 		break;
 	}
+
 	switch(coding->bParityType) {
 	case 0:
 		usart_set_parity(USBUSART, USART_PARITY_NONE);

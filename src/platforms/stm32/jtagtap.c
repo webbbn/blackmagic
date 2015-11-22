@@ -23,9 +23,7 @@
 #include <stdio.h>
 
 #include "general.h"
-
 #include "jtagtap.h"
-#include "platform.h"
 
 int jtagtap_init(void)
 {
@@ -42,10 +40,12 @@ int jtagtap_init(void)
 void jtagtap_reset(void)
 {
 #ifdef TRST_PORT
-	volatile int i;
-	gpio_clear(TRST_PORT, TRST_PIN);
-	for(i = 0; i < 10000; i++) asm("nop");
-	gpio_set(TRST_PORT, TRST_PIN);
+	if (platform_hwversion() == 0) {
+		volatile int i;
+		gpio_clear(TRST_PORT, TRST_PIN);
+		for(i = 0; i < 10000; i++) asm("nop");
+		gpio_set(TRST_PORT, TRST_PIN);
+	}
 #endif
 	jtagtap_soft_reset();
 }
