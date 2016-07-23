@@ -24,6 +24,7 @@
 
 #include "general.h"
 #include "jtagtap.h"
+#include "gdb_packet.h"
 
 int jtagtap_init(void)
 {
@@ -50,19 +51,6 @@ void jtagtap_reset(void)
 	jtagtap_soft_reset();
 }
 
-void jtagtap_srst(bool assert)
-{
-	(void)assert;
-#ifdef SRST_SET_VAL
-	SRST_SET_VAL(assert);
-	if(assert) {
-		int i;
-		for(i = 0; i < 10000; i++)
-			asm volatile("nop");
-	}
-#endif
-}
-
 inline uint8_t jtagtap_next(uint8_t dTMS, uint8_t dTDO)
 {
 	uint16_t ret;
@@ -73,16 +61,8 @@ inline uint8_t jtagtap_next(uint8_t dTMS, uint8_t dTDO)
 	ret = gpio_get(TDO_PORT, TDO_PIN);
 	gpio_clear(TCK_PORT, TCK_PIN);
 
-	DEBUG("jtagtap_next(TMS = %d, TDO = %d) = %d\n", dTMS, dTDO, ret);
+	//DEBUG("jtagtap_next(TMS = %d, TDO = %d) = %d\n", dTMS, dTDO, ret);
 
 	return ret != 0;
 }
-
-
-
-#define PROVIDE_GENERIC_JTAGTAP_TMS_SEQ
-#define PROVIDE_GENERIC_JTAGTAP_TDI_TDO_SEQ
-#define PROVIDE_GENERIC_JTAGTAP_TDI_SEQ
-
-#include "jtagtap_generic.c"
 

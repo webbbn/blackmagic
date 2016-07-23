@@ -41,17 +41,49 @@ static void setup_vbus_irq(void);
 /* Pins PB[7:5] are used to detect hardware revision.
  * 000 - Original production build.
  * 001 - Mini production build.
+ * 010 - Mini V2.0e and later.
  */
 int platform_hwversion(void)
 {
 	static int hwversion = -1;
+	uint16_t hwversion_pins = GPIO7 | GPIO6 | GPIO5;
+	uint16_t unused_pins = hwversion_pins ^ 0xFFFF;
+
+	/* Only check for version if this is the first time. */
 	if (hwversion == -1) {
+		/* Configure the hardware version pins as input pull-up/down */
 		gpio_set_mode(GPIOB, GPIO_MODE_INPUT,
 				GPIO_CNF_INPUT_PULL_UPDOWN,
-				GPIO7 | GPIO6 | GPIO5);
-		gpio_clear(GPIOB, GPIO7 | GPIO6 | GPIO5);
-		hwversion = gpio_get(GPIOB, GPIO7 | GPIO6 | GPIO5) >> 5;
+				hwversion_pins);
+
+		/* Enable the weak pull up. */
+		gpio_set(GPIOB, hwversion_pins);
+
+		/* Wait a little to make sure the pull up is in effect... */
+		for(int i = 0; i < 100; i++) asm("nop");
+
+		/* Get all pins that are pulled low in hardware.
+		 * This also sets all the "unused" pins to 1.
+		 */
+		uint16_t pins_negative = gpio_get(GPIOB, hwversion_pins) | unused_pins;
+
+		/* Enable the weak pull down. */
+		gpio_clear(GPIOB, hwversion_pins);
+
+		/* Wait a little to make sure the pull down is in effect... */
+		for(int i = 0; i < 100; i++) asm("nop");
+
+		/* Get all the pins that are pulled high in hardware. */
+		uint16_t pins_positive = gpio_get(GPIOB, hwversion_pins);
+
+		/* Hardware version is the id defined by the pins that are
+		 * asserted low or high by the hardware. This means that pins
+		 * that are left floating are 0 and those that are either
+		 * pulled high or low are 1.
+		 */
+		hwversion = (((pins_positive ^ pins_negative) ^ 0xFFFF) & hwversion_pins) >> 5;
 	}
+
 	return hwversion;
 }
 
@@ -103,10 +135,14 @@ void platform_init(void)
 
 	/* Enable internal pull-up on PWR_BR so that we don't drive
 	   TPWR locally or inadvertently supply power to the target. */
-	if (platform_hwversion () > 0) {
-		gpio_set (PWR_BR_PORT, PWR_BR_PIN);
+	if (platform_hwversion () == 1) {
+		gpio_set(PWR_BR_PORT, PWR_BR_PIN);
 		gpio_set_mode(PWR_BR_PORT, GPIO_MODE_INPUT,
 		              GPIO_CNF_INPUT_PULL_UPDOWN, PWR_BR_PIN);
+	} else if (platform_hwversion() > 1) {
+		gpio_set(PWR_BR_PORT, PWR_BR_PIN);
+		gpio_set_mode(PWR_BR_PORT, GPIO_MODE_OUTPUT_50_MHZ,
+		              GPIO_CNF_OUTPUT_OPENDRAIN, PWR_BR_PIN);
 	}
 
 	if (platform_hwversion() > 0) {
@@ -131,6 +167,18 @@ void platform_srst_set_val(bool assert)
 		gpio_set_val(SRST_PORT, SRST_PIN, assert);
 	} else {
 		gpio_set_val(SRST_PORT, SRST_PIN, !assert);
+	}
+	if (assert) {
+		for(int i = 0; i < 10000; i++) asm("nop");
+	}
+}
+
+bool platform_srst_get_val(void)
+{
+	if (platform_hwversion() == 0) {
+		return gpio_get(SRST_PORT, SRST_SENSE_PIN) == 0;
+	} else {
+		return gpio_get(SRST_PORT, SRST_PIN) == 0;
 	}
 }
 

@@ -26,6 +26,7 @@
 
 #include "gpio.h"
 #include "timing.h"
+#include "timing_stm32.h"
 #include "version.h"
 
 #define BOARD_IDENT            "Black Magic Probe (SWLINK), (Firmware " FIRMWARE_VERSION ")"
@@ -126,6 +127,11 @@
 #define SET_RUN_STATE(state)	{running_status = (state);}
 #define SET_IDLE_STATE(state)	{gpio_set_val(LED_PORT, LED_IDLE_RUN, state);}
 #define SET_ERROR_STATE(x)
+
+static inline int platform_hwversion(void)
+{
+	        return 0;
+}
 
 /* Use newlib provided integer only stdio functions */
 #define sscanf siscanf

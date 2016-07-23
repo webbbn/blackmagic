@@ -33,14 +33,19 @@
 
 extern void trace_tick(void);
 
+volatile platform_timeout * volatile head_timeout;
 uint8_t running_status;
-volatile uint32_t timeout_counter;
+static volatile uint32_t time_ms;
 
 void sys_tick_handler(void)
 {
-	if(timeout_counter)
-		timeout_counter--;
 	trace_tick();
+	time_ms += 10;
+}
+
+uint32_t platform_time_ms(void)
+{
+	return time_ms;
 }
 
 void
@@ -85,20 +90,27 @@ platform_init(void)
 	                      0xff, 0xff);
 }
 
-void platform_timeout_set(uint32_t ms)
+void platform_srst_set_val(bool assert)
 {
-	timeout_counter = ms / 10;
+	volatile int i;
+	if (assert) {
+		gpio_clear(SRST_PORT, SRST_PIN);
+		for(i = 0; i < 10000; i++) asm("nop");
+	} else {
+		gpio_set(SRST_PORT, SRST_PIN);
+	}
 }
 
-bool platform_timeout_is_expired(void)
+bool platform_srst_get_val(void)
 {
-	return timeout_counter == 0;
+	return gpio_get(SRST_PORT, SRST_PIN) == 0;
 }
 
-void platform_delay(uint32_t delay)
+void platform_delay(uint32_t ms)
 {
-	platform_timeout_set(delay);
-	while (platform_timeout_is_expired());
+	platform_timeout timeout;
+	platform_timeout_set(&timeout, ms);
+	while (!platform_timeout_is_expired(&timeout));
 }
 
 const char *platform_target_voltage(void)

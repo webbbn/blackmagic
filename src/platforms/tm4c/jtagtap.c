@@ -25,18 +25,6 @@ jtagtap_reset(void)
 	jtagtap_soft_reset();
 }
 
-void
-jtagtap_srst(bool assert)
-{
-	volatile int i;
-	if (assert) {
-		gpio_clear(SRST_PORT, SRST_PIN);
-		for(i = 0; i < 10000; i++) asm("nop");
-	} else {
-		gpio_set(SRST_PORT, SRST_PIN);
-	}
-}
-
 uint8_t
 jtagtap_next(const uint8_t dTMS, const uint8_t dTDO)
 {
@@ -53,7 +41,3 @@ jtagtap_next(const uint8_t dTMS, const uint8_t dTDO)
 	return ret != 0;
 }
 
-#define PROVIDE_GENERIC_JTAGTAP_TMS_SEQ
-#define PROVIDE_GENERIC_JTAGTAP_TDI_TDO_SEQ
-#define PROVIDE_GENERIC_JTAGTAP_TDI_SEQ
-#include "jtagtap_generic.c"

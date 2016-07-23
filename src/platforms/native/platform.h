@@ -26,9 +26,14 @@
 
 #include "gpio.h"
 #include "timing.h"
+#include "timing_stm32.h"
 
 #define PLATFORM_HAS_TRACESWO
 #define PLATFORM_HAS_POWER_SWITCH
+#ifdef ENABLE_DEBUG
+#define PLATFORM_HAS_DEBUG
+#define USBUART_DEBUG
+#endif
 #define BOARD_IDENT             "Black Magic Probe"
 #define BOARD_IDENT_DFU	        "Black Magic Probe (Upgrade)"
 #define BOARD_IDENT_UPD	        "Black Magic Probe (DFU Upgrade)"
@@ -80,6 +85,7 @@
 #define PWR_BR_PIN	GPIO1
 #define SRST_PORT	GPIOA
 #define SRST_PIN	GPIO2
+#define SRST_SENSE_PIN	GPIO7
 
 #define USB_PU_PORT	GPIOA
 #define USB_PU_PIN	GPIO8
@@ -90,9 +96,12 @@
 
 #define LED_PORT	GPIOB
 #define LED_PORT_UART	GPIOB
-#define LED_UART	GPIO2
-#define LED_IDLE_RUN	GPIO10
-#define LED_ERROR	GPIO11
+#define LED_0		GPIO2
+#define LED_1		GPIO10
+#define LED_2		GPIO11
+#define LED_UART	(platform_hwversion() < 2 ? LED_2 : LED_0)
+#define LED_IDLE_RUN	LED_1
+#define LED_ERROR	(platform_hwversion() < 2 ? LED_0 : LED_2)
 
 #define TMS_SET_MODE() \
 	gpio_set_mode(TMS_PORT, GPIO_MODE_OUTPUT_50_MHZ, \
@@ -107,9 +116,6 @@
 #define UART_PIN_SETUP() \
 	gpio_set_mode(USBUSART_PORT, GPIO_MODE_OUTPUT_2_MHZ, \
 	              GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, USBUSART_TX_PIN);
-
-#define SRST_SET_VAL(x) \
-	platform_srst_set_val(x)
 
 #define USB_DRIVER stm32f103_usb_driver
 #define USB_IRQ    NVIC_USB_LP_CAN_RX0_IRQ
@@ -141,7 +147,14 @@
 #define TRACE_IRQ   NVIC_TIM3_IRQ
 #define TRACE_ISR   tim3_isr
 
+#ifdef ENABLE_DEBUG
+extern bool debug_bmp;
+void usbuart_debug_outf(const char *fmt, ...);
+
+#define DEBUG(...) if (debug_bmp) {usbuart_debug_outf("bmp: ");usbuart_debug_outf(__VA_ARGS__);}
+#else
 #define DEBUG(...)
+#endif
 
 #define SET_RUN_STATE(state)	{running_status = (state);}
 #define SET_IDLE_STATE(state)	{gpio_set_val(LED_PORT, LED_IDLE_RUN, state);}
@@ -154,4 +167,3 @@
 #define vasprintf vasiprintf
 
 #endif
-
